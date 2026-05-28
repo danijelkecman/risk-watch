@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ app_name }}</title>
+  <style>
+    :root {
+      --bg: #09111d; --panel: #0f1a2b; --panel2: #122138; --line: #21344f;
+      --text: #e5edf8; --muted: #9db0cb; --green: #29c46d; --amber: #f3b33d; --red: #ff5c5c; --deep-red: #7d0f18;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:linear-gradient(180deg,#08111c 0%,#0c1726 100%); color:var(--text); font-family:Inter,system-ui,Arial,sans-serif; }
+    .wrap { max-width: 1560px; margin: 0 auto; padding: 20px; }
+    .grid { display:grid; gap:16px; }
+    .grid.top { grid-template-columns: 1fr 1.2fr 0.8fr; }
+    .grid.bottom { grid-template-columns: 1fr 1fr 1fr; margin-top:16px; }
+    .card { background:rgba(15,26,43,.92); border:1px solid var(--line); border-radius:18px; padding:16px; box-shadow:0 8px 28px rgba(0,0,0,.25); }
+    .section-title{ font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:12px; }
+    .titlebar{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:18px; gap:16px; }
+    .subtitle,.muted{ color:var(--muted); font-size:14px; }
+    .score { font-size:64px; font-weight:800; line-height:1; }
+    .pill { display:inline-block; margin-top:8px; padding:8px 12px; border-radius:999px; font-size:13px; font-weight:700; }
+    .metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
+    .metric { background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:12px; }
+    .metric .k{ color:var(--muted); font-size:12px; } .metric .v{ font-size:28px; font-weight:700; margin-top:6px; }
+    .alert{ background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:10px; }
+    .alert h4{ margin:0 0 6px 0; font-size:14px;} .alert p{ margin:0; color:var(--muted); font-size:13px; }
+    .toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+    input,button { border-radius:10px; border:1px solid var(--line); background:#11213a; color:var(--text); padding:10px 12px; }
+    button { cursor:pointer; font-weight:700; }
+    .danger { color:#ffaeae; }
+    @media (max-width: 1200px){ .grid.top, .grid.bottom { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="titlebar">
+    <div>
+      <h1 style="margin:0;">{{ app_name }}</h1>
+      <div class="subtitle">Live private-credit stress monitor with persistence, auth, replay, and alert plumbing.</div>
+    </div>
+    <div class="subtitle" id="timestamp">Waiting for stream…</div>
+  </div>
+
+  <div class="grid top">
+    <div class="card">
+      <div class="section-title">System state</div>
+      <div class="score" id="overall-score">--</div>
+      <div class="pill" id="severity-pill">No data</div>
+      <div class="metrics">
+        <div class="metric"><div class="k">Redemptions</div><div class="v" id="m-redemptions">--</div></div>
+        <div class="metric"><div class="k">Peer avg</div><div class="v" id="m-peer">--</div></div>
+        <div class="metric"><div class="k">Secondary discount</div><div class="v" id="m-secondary">--</div></div>
+        <div class="metric"><div class="k">Funding spread</div><div class="v" id="m-spread">--</div></div>
+      </div>
+      <div class="toolbar">
+        <input id="token" type="password" placeholder="Bearer token" />
+        <input id="replay-limit" type="number" value="120" min="10" max="1000" />
+        <input id="replay-speed" type="number" value="8" step="0.5" min="0.1" max="100" />
+        <button id="replay-btn">Start replay</button>
+        <span class="muted" id="mode-label">Mode: live</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Danger diagram</div>
+      <svg viewBox="0 0 700 330" width="100%" height="330">
+        <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#91a9cf"></path></marker></defs>
+        <rect x="25" y="36" width="160" height="58" rx="16" fill="#15304d" stroke="#29476c"></rect>
+        <text x="105" y="70" text-anchor="middle" fill="#dbe6f7" font-size="12">Redemptions rise</text>
+        <rect x="270" y="36" width="170" height="58" rx="16" fill="#15304d" stroke="#29476c"></rect>
+        <text x="355" y="62" text-anchor="middle" fill="#dbe6f7" font-size="12">Liquidity cap / gate</text>
+        <text x="355" y="80" text-anchor="middle" fill="#dbe6f7" font-size="12">stress</text>
+        <rect x="520" y="36" width="160" height="58" rx="16" fill="#43141a" stroke="#ff7a7a"></rect>
+        <text x="600" y="62" text-anchor="middle" fill="#dbe6f7" font-size="12">Confidence damage</text>
+        <text x="600" y="80" text-anchor="middle" fill="#dbe6f7" font-size="12">danger zone</text>
+        <rect x="270" y="170" width="170" height="58" rx="16" fill="#43141a" stroke="#ff7a7a"></rect>
+        <text x="355" y="197" text-anchor="middle" fill="#dbe6f7" font-size="12">Secondary discounts</text>
+        <text x="355" y="214" text-anchor="middle" fill="#dbe6f7" font-size="12">forced seller zone</text>
+        <rect x="520" y="170" width="160" height="58" rx="16" fill="#43141a" stroke="#ff7a7a"></rect>
+        <text x="600" y="197" text-anchor="middle" fill="#dbe6f7" font-size="12">Software / tech</text>
+        <text x="600" y="214" text-anchor="middle" fill="#dbe6f7" font-size="12">borrower damage</text>
+        <rect x="25" y="170" width="160" height="58" rx="16" fill="#15304d" stroke="#29476c"></rect>
+        <text x="105" y="197" text-anchor="middle" fill="#dbe6f7" font-size="12">Peer fund outflows</text>
+        <text x="105" y="214" text-anchor="middle" fill="#dbe6f7" font-size="12">contagion</text>
+        <line x1="185" y1="65" x2="270" y2="65" stroke="#91a9cf" stroke-width="3" marker-end="url(#arrow)"></line>
+        <line x1="440" y1="65" x2="520" y2="65" stroke="#91a9cf" stroke-width="3" marker-end="url(#arrow)"></line>
+        <line x1="600" y1="94" x2="600" y2="170" stroke="#91a9cf" stroke-width="3" marker-end="url(#arrow)"></line>
+        <line x1="520" y1="199" x2="440" y2="199" stroke="#91a9cf" stroke-width="3" marker-end="url(#arrow)"></line>
+        <line x1="270" y1="199" x2="185" y2="199" stroke="#91a9cf" stroke-width="3" marker-end="url(#arrow)"></line>
+        <path d="M105 170 C120 120, 180 92, 270 85" fill="none" stroke="#91a9cf" stroke-width="3" marker-end="url(#arrow)"></path>
+        <text x="435" y="280" fill="#ffaeae" font-size="12">Marked danger: confidence + discounts + sector damage reinforcing each other.</text>
+        <text x="435" y="300" fill="#ffaeae" font-size="12">That is where “stable income product” turns into liquidity theater.</text>
+      </svg>
+      <div class="muted" id="notes-text">Loading analyst notes…</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Alerts</div>
+      <div id="alerts"></div>
+    </div>
+  </div>
+
+  <div class="grid bottom">
+    <div class="card"><div class="section-title">Overall stress history</div><svg id="score-chart" viewBox="0 0 520 220" width="100%" height="220"></svg></div>
+    <div class="card"><div class="section-title">Breakdown radar</div><svg id="radar-chart" viewBox="0 0 320 220" width="100%" height="220"></svg></div>
+    <div class="card"><div class="section-title">Trigger ladder</div><svg id="ladder-chart" viewBox="0 0 340 220" width="100%" height="220"></svg></div>
+  </div>
+</div>
+<script src="/static/dashboard.js"></script>
+</body>
+</html>

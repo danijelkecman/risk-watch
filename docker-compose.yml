@@ -1,0 +1,42 @@
+version: "3.9"
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      PCRW_DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/private_credit
+      PCRW_SYNC_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/private_credit
+      PCRW_REDIS_URL: redis://redis:6379/0
+      PCRW_AUTH_TOKEN: changeme-super-long-token
+      PCRW_MOCK_MODE: "true"
+      PCRW_ALERT_CONSOLE_ENABLED: "true"
+      PCRW_ALERT_SLACK_WEBHOOK: ""
+      PCRW_WHATSAPP_ACCESS_TOKEN: ""
+      PCRW_WHATSAPP_PHONE_NUMBER_ID: ""
+      PCRW_WHATSAPP_TO_NUMBER: ""
+      PCRW_SMTP_HOST: ""
+      PCRW_SMTP_PORT: "587"
+      PCRW_SMTP_USERNAME: ""
+      PCRW_SMTP_PASSWORD: ""
+      PCRW_ALERT_EMAIL_TO: ""
+    depends_on:
+      - postgres
+      - redis
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: private_credit
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+volumes:
+  pgdata:
