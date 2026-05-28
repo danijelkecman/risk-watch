@@ -1,20 +1,20 @@
-# Private Credit Risk Watch v2
+# Risk Watch
 
 ![Private Credit Risk Watch dashboard](docker/screen.png)
 
-A real-time Python monitoring project for private-credit stress with a live web dashboard, WebSockets, PostgreSQL/TimescaleDB persistence, Redis pub/sub, token-protected replay controls, and alert sinks.
+This is a small real-time credit risk monitoring project built with Python and FastAPI.
 
-This version is designed to watch what actually matters instead of flattering the operator with vanity charts.
+It tracks private-credit stress signals, streams updates to a dashboard, stores snapshots, and can send alerts through a few different channels.
 
 ## What it does
 
 - streams live risk states to a web dashboard
-- stores snapshots in PostgreSQL / TimescaleDB-compatible schema
-- distributes updates through Redis pub/sub
-- supports token-protected historical replay mode
-- sends alert events to console, Slack, WhatsApp Cloud API, or SMTP email
-- marks structural danger zones directly on diagrams
-- keeps the scoring model opinionated around liquidity mismatch and contagion
+- stores snapshots in PostgreSQL or SQLite
+- supports a TimescaleDB-compatible schema
+- publishes updates through Redis pub/sub
+- supports token-protected replay mode
+- sends alerts to console, Slack, WhatsApp Cloud API, or SMTP email
+- includes diagrams for contagion loops, risk factors, and trigger levels
 
 ## Architecture
 
@@ -51,13 +51,13 @@ flowchart TD
 
 ## Dashboard diagrams
 
-The UI includes three visual layers:
+The dashboard has three main visual sections:
 
 1. **Danger diagram**  
-   Marks the reflexive loop where confidence, discounts, and sector weakness feed one another.
+   Shows how confidence, discounts, redemptions, and sector weakness can feed into each other.
 
 2. **Radar chart**  
-   Shows the five main failure surfaces:
+   Tracks the main risk factors:
    - liquidity mismatch
    - contagion
    - sector damage
@@ -65,7 +65,7 @@ The UI includes three visual layers:
    - oversight heat
 
 3. **Trigger ladder**  
-   Marks each threshold where normal stress becomes structural danger.
+   Shows when normal stress starts turning into a more serious risk state.
 
 ## Project layout
 
@@ -153,13 +153,13 @@ changeme-super-long-token
 
 Replay mode is token-protected. Paste your bearer token into the dashboard and press **Start replay**.
 
-It replays stored snapshots from the database at accelerated speed so you can see how the system behaves under historical stress instead of staring at a frozen dashboard like a tourist.
+It replays stored snapshots from the database at accelerated speed, which makes it easier to test the dashboard and alert logic against historical data.
 
 ## Replace the mock feed
 
-The weak point is obvious and intentional: `app/datasource.py` is still mocked.
+The data feed is still mocked in `app/datasource.py`.
 
-That is where you plug in:
+That is the file to replace with real inputs, for example:
 
 - SEC filing parsers
 - fund factsheet scrapers
@@ -170,8 +170,7 @@ That is where you plug in:
 
 ## Why this is built this way
 
-Because the real problem is not drawing charts. The real problem is catching the moment when an illiquid book is being sold as a liquid experience and the marginal seller has decided the story is over.
-
+I built this to keep the risk model simple and visible. The main focus is liquidity mismatch, contagion, sector pressure, market stress, and alerting when those signals start moving together.
 
 ## WhatsApp setup
 
