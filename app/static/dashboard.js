@@ -13,7 +13,7 @@ function colorForSeverity(sev) {
 
 function fmtPct(v) { return `${Number(v).toFixed(1)}%`; }
 function fmtBps(v) { return `${Math.round(v)} bps`; }
-function fmtBn(v) { return `$${Number(v).toFixed(2)}bn`; }
+function fmtMaybe(v, formatter) { return v == null ? '--' : formatter(v); }
 
 function setText(id, value) {
   const el = document.getElementById(id);
@@ -30,6 +30,23 @@ function renderAlerts(alerts) {
     div.innerHTML = `<h4>${a.title}</h4><p>${a.message}</p>`;
     root.appendChild(div);
   });
+}
+
+function renderSources(signals) {
+  const root = document.getElementById('sources');
+  root.innerHTML = '';
+  Object.entries(signals || {}).forEach(([name, meta]) => {
+    const div = document.createElement('div');
+    div.className = 'source';
+    const title = document.createElement('strong');
+    const detail = document.createElement('span');
+    const observed = new Date(meta.observed_at).toLocaleString();
+    title.textContent = name.replaceAll('_', ' ');
+    detail.textContent = `${meta.source}${meta.is_proxy ? ' · proxy' : ''} · observed ${observed}`;
+    div.append(title, document.createElement('br'), detail);
+    root.appendChild(div);
+  });
+  if (!root.children.length) root.textContent = 'No configured upstream source has returned data yet.';
 }
 
 function linePath(points) {
@@ -135,11 +152,11 @@ function renderLadderChart(latest) {
   const svg = document.getElementById('ladder-chart');
   svg.innerHTML = '';
   const items = [
-    ['Redemptions', latest.snapshot.redemption_rate_pct, 25],
-    ['Peer spread', latest.snapshot.peer_redemption_avg_pct, 15],
-    ['Sector damage', latest.snapshot.software_sector_stress, 70],
-    ['Discounts', latest.snapshot.secondary_discount_pct, 12],
-    ['Oversight', latest.snapshot.regulator_attention, 60],
+    ['HY OAS', (latest.snapshot.high_yield_oas_bps || 0) / 10, 50],
+    ['BDC selloff', (latest.snapshot.bdc_selloff_pct || 0) * 10, 30],
+    ['Credit ETF', (latest.snapshot.credit_etf_selloff_pct || 0) * 10, 20],
+    ['Software ETF', (latest.snapshot.software_etf_selloff_pct || 0) * 10, 30],
+    ['SEC filings', latest.snapshot.sec_filing_count_30d || 0, 20],
   ];
 
   items.forEach(([label, value, danger], i) => {
@@ -183,13 +200,14 @@ function render(latest) {
   pill.style.background = colorForSeverity(latest.severity);
   pill.style.color = latest.severity === 'amber' ? '#111' : '#fff';
 
-  setText('m-redemptions', fmtPct(latest.snapshot.redemption_rate_pct));
-  setText('m-peer', fmtPct(latest.snapshot.peer_redemption_avg_pct));
-  setText('m-secondary', fmtPct(latest.snapshot.secondary_discount_pct));
-  setText('m-spread', fmtBps(latest.snapshot.funding_spread_bps));
+  setText('m-hy-oas', fmtMaybe(latest.snapshot.high_yield_oas_bps, fmtBps));
+  setText('m-bdc', fmtMaybe(latest.snapshot.bdc_selloff_pct, fmtPct));
+  setText('m-credit-etf', fmtMaybe(latest.snapshot.credit_etf_selloff_pct, fmtPct));
+  setText('m-software-etf', fmtMaybe(latest.snapshot.software_etf_selloff_pct, fmtPct));
   setText('notes-text', latest.annotations.join(' '));
 
   renderAlerts(latest.alerts);
+  renderSources(latest.snapshot.signals);
   renderScoreChart();
   renderRadarChart(latest);
   renderLadderChart(latest);

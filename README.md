@@ -2,106 +2,29 @@
 
 ![Private Credit Risk Watch dashboard](docker/screen.png)
 
-This is a small real-time credit risk monitoring project built with Python and FastAPI.
+Risk Watch is a FastAPI dashboard for monitoring public-market proxies related to private-credit stress. It polls real upstream APIs, scores changed observations, stores snapshots, streams dashboard updates, and can send alerts.
 
-It tracks private-credit stress signals, streams updates to a dashboard, stores snapshots, and can send alerts through a few different channels.
+It does **not** claim to observe private-fund redemptions, inflows, gates, or current private-loan NAV marks. Those require an internal administrator feed.
 
-## What it does
+## Data sources
 
-- streams live risk states to a web dashboard
-- stores snapshots in PostgreSQL or SQLite
-- supports a TimescaleDB-compatible schema
-- publishes updates through Redis pub/sub
-- supports token-protected replay mode
-- sends alerts to console, Slack, WhatsApp Cloud API, or SMTP email
-- includes diagrams for contagion loops, risk factors, and trigger levels
+| Signal | Provider | Default input | Cadence | Meaning |
+| --- | --- | --- | --- | --- |
+| High-yield OAS | [FRED API](https://fred.stlouisfed.org/docs/api/fred/overview.html) | `BAMLH0A0HYM2` | 5 minutes | ICE BofA US High Yield Index option-adjusted spread |
+| Listed BDC basket selloff | [Massive daily summaries](https://massive.com/docs/rest/stocks/aggregates/daily-market-summary) | `ARCC,BXSL,OBDC,MAIN,FSK,GBDC,TSLX` | 1 hour | Average completed trading-day downside move versus previous close |
+| Liquid credit selloff | Massive daily summaries | `HYG` | 1 hour | Completed trading-day downside move versus previous close |
+| Software-sector selloff | Massive daily summaries | `IGV` | 1 hour | Completed trading-day downside move versus previous close |
+| Public filing activity | [SEC EDGAR submissions API](https://www.sec.gov/edgar/sec-api-documentation) | Configured CIKs | 15 minutes | Count of submissions over 30 days |
 
-## Architecture
+Every returned signal includes its provider, observation timestamp, fetch timestamp, proxy flag, and description. A snapshot is persisted and streamed only when an upstream value changes.
 
-```mermaid
-flowchart LR
-    A[Fund disclosures / SEC filings] --> N[Normalization layer]
-    B[Spread proxies / secondary discounts] --> N
-    C[Analyst overrides / manual events] --> N
-    D[News ingestion adapters] --> N
-    N --> S[Scoring engine]
-    S --> DB[(PostgreSQL / TimescaleDB)]
-    S --> R[(Redis pub/sub)]
-    R --> W[WebSocket broadcaster]
-    W --> UI[FastAPI dashboard]
-    S --> AL[Alert manager]
-    AL --> E1[Slack]
-    AL --> E2[WhatsApp]
-    AL --> E3[SMTP email]
-```
+Massive daily market summaries are available on the free Stocks Basic plan. The dashboard uses the two latest completed trading days, so these signals are end-of-day indicators rather than intraday monitors.
 
-## Where danger lies
+The default FRED series is ICE-owned top-level index data. Review the series notes and obtain any required permission before publishing or redistributing it. FRED API access does not override third-party data restrictions.
 
-```mermaid
-flowchart TD
-    A[Redemptions rise] --> B[Gate / cap pressure]
-    B --> C[Confidence damage]
-    C --> D[Secondary discounts widen]
-    D --> E[More redemption requests]
-    E --> B
-    F[Software / tech borrower weakness] --> G[Defaults / markdowns]
-    G --> C
-    H[Peer manager outflows] --> C
-```
+## Setup
 
-## Dashboard diagrams
-
-The dashboard has three main visual sections:
-
-1. **Danger diagram**  
-   Shows how confidence, discounts, redemptions, and sector weakness can feed into each other.
-
-2. **Radar chart**  
-   Tracks the main risk factors:
-   - liquidity mismatch
-   - contagion
-   - sector damage
-   - market stress
-   - oversight heat
-
-3. **Trigger ladder**  
-   Shows when normal stress starts turning into a more serious risk state.
-
-## Project layout
-
-```text
-private_credit_risk_watch_v2/
-├── app/
-│   ├── main.py
-│   ├── config.py
-│   ├── models.py
-│   ├── scoring.py
-│   ├── engine.py
-│   ├── datasource.py
-│   ├── routers/
-│   │   └── api.py
-│   ├── services/
-│   │   ├── alerts.py
-│   │   ├── auth.py
-│   │   ├── database.py
-│   │   └── pubsub.py
-│   ├── static/
-│   │   └── dashboard.js
-│   └── templates/
-│       └── index.html
-├── docker/
-│   └── init.sql
-├── tests/
-│   ├── test_api.py
-│   └── test_scoring.py
-├── docker-compose.yml
-├── Dockerfile
-└── requirements.txt
-```
-
-## Run locally without Docker
-
-### 1. Create environment
+### 1. Create an environment
 
 ```bash
 python -m venv .venv
@@ -109,74 +32,85 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Start supporting services
+### 2. Configure feeds
 
-You need PostgreSQL and Redis if you want the full stack. For quick local development you can stay on SQLite by leaving defaults in place.
+At least one of FRED or Massive must be configured:
 
-### 3. Launch app
+```env
+PCRW_FRED_API_KEY=...
+PCRW_MASSIVE_API_KEY=...
+```
+
+Optional SEC EDGAR monitoring requires a descriptive user agent and one or more CIKs:
+
+```env
+PCRW_SEC_USER_AGENT="risk-watch.danijel.kecman@cxromos.com"
+PCRW_SEC_CIKS='["0001287750","0001736035"]'
+```
+
+SEC automated access must follow its [fair-access guidance](https://www.sec.gov/about/developer-resources). The app polls SEC every 15 minutes by default.
+
+Optional source customization:
+
+```env
+PCRW_BDC_TICKERS='["ARCC","BXSL","OBDC","MAIN","FSK","GBDC","TSLX"]'
+PCRW_CREDIT_ETF_TICKER=HYG
+PCRW_SOFTWARE_ETF_TICKER=IGV
+PCRW_FRED_POLL_INTERVAL_SECONDS=300
+PCRW_MASSIVE_POLL_INTERVAL_SECONDS=3600
+PCRW_SEC_POLL_INTERVAL_SECONDS=900
+```
+
+### 3. Run locally
+
+SQLite and direct in-process WebSocket delivery are the defaults:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Open:
+Open `http://127.0.0.1:8000`.
 
-```text
-http://127.0.0.1:8000
-```
+Without configured credentials, the service starts but waits for upstream configuration. It does not generate fake snapshots.
 
-## Run full stack with Docker
+## Docker
+
+Set feed credentials in `docker-compose.yml` or pass them through your deployment environment:
 
 ```bash
 docker compose up --build
 ```
 
-Then open:
+Docker enables PostgreSQL, TimescaleDB initialization, and Redis pub/sub. Redis is optional outside Docker. Enable it with:
 
-```text
-http://127.0.0.1:8000
+```env
+PCRW_REDIS_ENABLED=true
+PCRW_REDIS_URL=redis://localhost:6379/0
 ```
 
-Auth token for replay mode defaults to:
+## Scoring
 
-```text
-dev-token
-```
+The scoring engine combines:
 
-Inside Docker it is set in `docker-compose.yml` as:
+- liquid-credit weakness
+- synchronized listed-BDC repricing
+- software-sector pressure
+- high-yield spread widening
+- optional EDGAR filing activity
 
-```text
-changeme-super-long-token
-```
+These are public proxies. They are useful for monitoring market stress but are not substitutes for internal portfolio data.
 
 ## Replay mode
 
-Replay mode is token-protected. Paste your bearer token into the dashboard and press **Start replay**.
+Replay mode streams stored snapshots at an accelerated rate. Paste the bearer token into the dashboard and press **Start replay**.
 
-It replays stored snapshots from the database at accelerated speed, which makes it easier to test the dashboard and alert logic against historical data.
+The local token defaults to `dev-token`. Docker sets `changeme-super-long-token`; replace it in deployed environments.
 
-## Replace the mock feed
+## Alerts
 
-The data feed is still mocked in `app/datasource.py`.
+Alerts can be delivered to console, Slack, WhatsApp Cloud API, or SMTP email.
 
-That is the file to replace with real inputs, for example:
-
-- SEC filing parsers
-- fund factsheet scrapers
-- BDC discount feeds
-- spread and financing proxies
-- curated news event ingestion
-- internal analyst overrides
-
-## Why this is built this way
-
-I built this to keep the risk model simple and visible. The main focus is liquidity mismatch, contagion, sector pressure, market stress, and alerting when those signals start moving together.
-
-## WhatsApp setup
-
-The WhatsApp sink uses Meta's WhatsApp Cloud API, not Twilio.
-
-Set:
+WhatsApp configuration:
 
 ```env
 PCRW_WHATSAPP_ACCESS_TOKEN=...
@@ -184,4 +118,24 @@ PCRW_WHATSAPP_PHONE_NUMBER_ID=...
 PCRW_WHATSAPP_TO_NUMBER=49123...
 ```
 
-Use the recipient number in international format without a leading `+` when following WhatsApp Cloud API conventions.
+Use the recipient number in international format without a leading `+`.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    F[FRED spreads] --> N[RealStreamSource]
+    P[Massive daily summaries] --> N
+    E[SEC EDGAR submissions] --> N
+    N --> S[Scoring engine]
+    S --> DB[(PostgreSQL / SQLite)]
+    S --> R[(Optional Redis pub/sub)]
+    S --> W[Local WebSocket broadcaster]
+    R --> W
+    W --> UI[FastAPI dashboard]
+    S --> A[Alert manager]
+```
+
+## Internal-feed extension
+
+For institution-grade private-credit monitoring, a separate adapter for administrator or portfolio-system data is needed. That adapter should provide actual redemption requests, inflows, NAV marks, non-accruals, liquidity terms, and gate events with source timestamps. Those values should not be inferred from public prices.

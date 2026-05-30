@@ -22,7 +22,10 @@ templates = Jinja2Templates(directory="app/templates")
 async def lifespan(_: FastAPI):
     await init_db()
     await engine.start()
-    yield
+    try:
+        yield
+    finally:
+        await engine.stop()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -44,4 +47,6 @@ async def websocket_endpoint(websocket: WebSocket):
             payload = await queue.get()
             await websocket.send_text(json.dumps(payload))
     except WebSocketDisconnect:
+        pass
+    finally:
         engine.unregister_listener(queue)

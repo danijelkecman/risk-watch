@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
+
 from pydantic import BaseModel, Field
 
 
@@ -12,17 +13,22 @@ class Severity(str, Enum):
     deep_red = "deep_red"
 
 
+class SignalMetadata(BaseModel):
+    source: str
+    observed_at: datetime
+    fetched_at: datetime
+    is_proxy: bool
+    detail: str
+
+
 class InputSnapshot(BaseModel):
     timestamp: datetime
-    redemption_rate_pct: float = Field(ge=0, le=100)
-    inflow_offset_usd_bn: float
-    peer_redemption_avg_pct: float = Field(ge=0, le=100)
-    software_sector_stress: float = Field(ge=0, le=100)
-    default_rate_estimate_pct: float = Field(ge=0, le=100)
-    secondary_discount_pct: float = Field(ge=0, le=100)
-    funding_spread_bps: float = Field(ge=0)
-    regulator_attention: float = Field(ge=0, le=100)
-    confidence_shock: float = Field(ge=0, le=100)
+    high_yield_oas_bps: float | None = Field(default=None, ge=0)
+    bdc_selloff_pct: float | None = Field(default=None, ge=0)
+    credit_etf_selloff_pct: float | None = Field(default=None, ge=0)
+    software_etf_selloff_pct: float | None = Field(default=None, ge=0)
+    sec_filing_count_30d: int | None = Field(default=None, ge=0)
+    signals: dict[str, SignalMetadata] = Field(default_factory=dict)
 
 
 class RiskBreakdown(BaseModel):
@@ -47,11 +53,6 @@ class DashboardState(BaseModel):
     breakdown: RiskBreakdown
     alerts: list[Alert]
     annotations: list[str]
-
-
-class RiskSnapshotCreate(BaseModel):
-    source: str = "mock"
-    payload: DashboardState
 
 
 class ReplayMode(str, Enum):

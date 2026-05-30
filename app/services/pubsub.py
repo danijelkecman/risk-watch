@@ -14,12 +14,19 @@ CHANNEL = "private-credit-risk-updates"
 
 class RedisPubSub:
     def __init__(self) -> None:
-        self.redis = Redis.from_url(settings.redis_url, decode_responses=True)
+        self.redis = Redis.from_url(settings.redis_url, decode_responses=True) if settings.redis_enabled else None
 
-    async def publish(self, payload: dict) -> None:
-        await self.redis.publish(CHANNEL, json.dumps(payload))
+    async def close(self) -> None:
+        if self.redis is not None:
+            await self.redis.aclose()
+
+    async def publish(self, payload: dict, origin: str) -> None:
+        if self.redis is not None:
+            await self.redis.publish(CHANNEL, json.dumps({"origin": origin, "payload": payload}))
 
     async def subscribe(self) -> AsyncIterator[dict]:
+        if self.redis is None:
+            return
         pubsub = self.redis.pubsub()
         await pubsub.subscribe(CHANNEL)
         try:
@@ -30,4 +37,4 @@ class RedisPubSub:
                 await asyncio.sleep(0.05)
         finally:
             await pubsub.unsubscribe(CHANNEL)
-            await pubsub.close()
+            await pubsub.aclose()

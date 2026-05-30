@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   app:
     build: .
@@ -8,8 +7,12 @@ services:
       PCRW_DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/private_credit
       PCRW_SYNC_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/private_credit
       PCRW_REDIS_URL: redis://redis:6379/0
+      PCRW_REDIS_ENABLED: "true"
       PCRW_AUTH_TOKEN: changeme-super-long-token
-      PCRW_MOCK_MODE: "true"
+      PCRW_FRED_API_KEY: "${PCRW_FRED_API_KEY:-}"
+      PCRW_MASSIVE_API_KEY: "${PCRW_MASSIVE_API_KEY:-}"
+      PCRW_SEC_USER_AGENT: "${PCRW_SEC_USER_AGENT:-}"
+      PCRW_SEC_CIKS: "${PCRW_SEC_CIKS:-[]}"
       PCRW_ALERT_CONSOLE_ENABLED: "true"
       PCRW_ALERT_SLACK_WEBHOOK: ""
       PCRW_WHATSAPP_ACCESS_TOKEN: ""

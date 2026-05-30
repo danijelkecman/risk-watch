@@ -26,6 +26,8 @@
     .metric .k{ color:var(--muted); font-size:12px; } .metric .v{ font-size:28px; font-weight:700; margin-top:6px; }
     .alert{ background:var(--panel2); border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:10px; }
     .alert h4{ margin:0 0 6px 0; font-size:14px;} .alert p{ margin:0; color:var(--muted); font-size:13px; }
+    .source{ background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; font-size:12px; }
+    .source span{ color:var(--muted); }
     .toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
     input,button { border-radius:10px; border:1px solid var(--line); background:#11213a; color:var(--text); padding:10px 12px; }
     button { cursor:pointer; font-weight:700; }
@@ -38,7 +40,7 @@
   <div class="titlebar">
     <div>
       <h1 style="margin:0;">{{ app_name }}</h1>
-      <div class="subtitle">Live private-credit stress monitor with persistence, auth, replay, and alert plumbing.</div>
+      <div class="subtitle">Public-market private-credit proxy monitor with persistence, provenance, replay, and alert plumbing.</div>
     </div>
     <div class="subtitle" id="timestamp">Waiting for stream…</div>
   </div>
@@ -49,10 +51,10 @@
       <div class="score" id="overall-score">--</div>
       <div class="pill" id="severity-pill">No data</div>
       <div class="metrics">
-        <div class="metric"><div class="k">Redemptions</div><div class="v" id="m-redemptions">--</div></div>
-        <div class="metric"><div class="k">Peer avg</div><div class="v" id="m-peer">--</div></div>
-        <div class="metric"><div class="k">Secondary discount</div><div class="v" id="m-secondary">--</div></div>
-        <div class="metric"><div class="k">Funding spread</div><div class="v" id="m-spread">--</div></div>
+        <div class="metric"><div class="k">HY OAS</div><div class="v" id="m-hy-oas">--</div></div>
+        <div class="metric"><div class="k">BDC selloff proxy</div><div class="v" id="m-bdc">--</div></div>
+        <div class="metric"><div class="k">Credit ETF selloff</div><div class="v" id="m-credit-etf">--</div></div>
+        <div class="metric"><div class="k">Software ETF selloff</div><div class="v" id="m-software-etf">--</div></div>
       </div>
       <div class="toolbar">
         <input id="token" type="password" placeholder="Bearer token" />
@@ -106,6 +108,10 @@
     <div class="card"><div class="section-title">Overall stress history</div><svg id="score-chart" viewBox="0 0 520 220" width="100%" height="220"></svg></div>
     <div class="card"><div class="section-title">Breakdown radar</div><svg id="radar-chart" viewBox="0 0 320 220" width="100%" height="220"></svg></div>
     <div class="card"><div class="section-title">Trigger ladder</div><svg id="ladder-chart" viewBox="0 0 340 220" width="100%" height="220"></svg></div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <div class="section-title">Signal provenance</div>
+    <div id="sources">Waiting for configured upstream sources...</div>
   </div>
 </div>
 <script src="/static/dashboard.js"></script>
